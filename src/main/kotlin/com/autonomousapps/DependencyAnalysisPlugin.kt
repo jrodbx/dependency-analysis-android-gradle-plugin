@@ -4,6 +4,7 @@ package com.autonomousapps
 
 import com.android.build.gradle.AppExtension
 import com.android.build.gradle.LibraryExtension
+import com.android.build.gradle.internal.api.TestedVariant
 import com.android.builder.model.SourceProvider
 import com.autonomousapps.internal.*
 import com.autonomousapps.internal.analyzer.*
@@ -17,6 +18,7 @@ import org.gradle.api.*
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.plugins.JavaPluginConvention
 import org.gradle.api.provider.Provider
+import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.*
 import org.jetbrains.kotlin.gradle.dsl.KotlinProjectExtension
@@ -203,7 +205,7 @@ class DependencyAnalysisPlugin : Plugin<Project> {
       val appExtension = the<AppExtension>()
       appExtension.applicationVariants.all {
         // Container of all source sets relevant to this variant
-        val variantSourceSet = newVariantSourceSet(sourceSets, unitTestVariant?.sourceSets, kotlinSourceSets)
+        val variantSourceSet = newVariantSourceSet(sourceSets, getUnitTests(), kotlinSourceSets)
         val androidClassAnalyzer = AndroidAppAnalyzer(
           project = this@configureAndroidAppProject,
           variant = this,
@@ -226,7 +228,7 @@ class DependencyAnalysisPlugin : Plugin<Project> {
       val libExtension = the<LibraryExtension>()
       libExtension.libraryVariants.all {
         // Container of all source sets relevant to this variant
-        val variantSourceSet = newVariantSourceSet(sourceSets, unitTestVariant?.sourceSets, kotlinSourceSets)
+        val variantSourceSet = newVariantSourceSet(sourceSets, getUnitTests(), kotlinSourceSets)
         val androidClassAnalyzer = AndroidLibAnalyzer(
           project = this@configureAndroidLibProject,
           variant = this,
@@ -302,8 +304,8 @@ class DependencyAnalysisPlugin : Plugin<Project> {
         }
 
         val java = the<JavaPluginConvention>()
-        val testSource = java.sourceSets.findByName("test")
         val mainSource = java.sourceSets.findByName("main")
+        val testSource = java.getUnitTests()
         mainSource?.let { sourceSet ->
           try {
             val javaModuleClassAnalyzer = JavaAppAnalyzer(
@@ -336,8 +338,8 @@ class DependencyAnalysisPlugin : Plugin<Project> {
 
     afterEvaluate {
       val java = the<JavaPluginConvention>()
-      val testSource = java.sourceSets.findByName("test")
       val mainSource = java.sourceSets.findByName("main")
+      val testSource = java.getUnitTests()
       mainSource?.let { sourceSet ->
         try {
           // Regardless of the fact that this is a "java-library" project, the presence of Spring
@@ -381,7 +383,7 @@ class DependencyAnalysisPlugin : Plugin<Project> {
     afterEvaluate {
       val kotlin = the<KotlinProjectExtension>()
       val mainSource = kotlin.sourceSets.findByName("main")
-      val testSourceSet = kotlin.sourceSets.findByName("test")
+      val testSourceSet = kotlin.getUnitTests()
       mainSource?.let { mainSourceSet ->
         try {
           val kotlinJvmModuleClassAnalyzer: KotlinJvmAnalyzer =
@@ -397,6 +399,29 @@ class DependencyAnalysisPlugin : Plugin<Project> {
       } ?: logger.warn("No main source set. No analysis performed")
     }
   }
+
+  private fun TestedVariant.getUnitTests(): List<SourceProvider>? {
+    if (!shouldAnalyzeTests()) {
+      return null
+    }
+    return unitTestVariant?.sourceSets
+  }
+
+  private fun JavaPluginConvention.getUnitTests(): SourceSet? {
+    if (!shouldAnalyzeTests()) {
+      return null
+    }
+    return sourceSets.findByName("test")
+  }
+
+  private fun KotlinProjectExtension.getUnitTests(): KotlinSourceSet? {
+    if (!shouldAnalyzeTests()) {
+      return null
+    }
+    return sourceSets.findByName("test")
+  }
+
+  private fun shouldAnalyzeTests() = System.getProperty("dependency.analysis.tests", "true")!!.toBoolean()
 
   private fun Project.isAppProject() =
     pluginManager.hasPlugin(APPLICATION_PLUGIN) ||

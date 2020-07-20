@@ -94,20 +94,30 @@ internal abstract class AbstractDependencyAnalyzer<T : ClassAnalysisTask>(
 ) : DependencyAnalyzer<T> {
 
   protected val testJavaCompile by lazy {
-    try {
-      project.tasks.named<JavaCompile>(testJavaCompileName)
-    } catch (e: UnknownTaskException) {
+    if (!shouldAnalyzeTests()) {
       null
+    } else {
+      try {
+        project.tasks.named<JavaCompile>(testJavaCompileName)
+      } catch (e: UnknownTaskException) {
+        null
+      }
     }
   }
 
   protected val testKotlinCompile by lazy {
-    try {
-      project.tasks.named<KotlinCompile>(testKotlinCompileName)
-    } catch (e: UnknownTaskException) {
+    if (!shouldAnalyzeTests()) {
       null
-    } catch (e: NoClassDefFoundError) {
-      null
+    } else {
+      try {
+        project.tasks.named<KotlinCompile>(testKotlinCompileName)
+      } catch (e: UnknownTaskException) {
+        null
+      } catch (e: NoClassDefFoundError) {
+        null
+      }
     }
   }
+
+  private fun shouldAnalyzeTests() = System.getProperty("dependency.analysis.tests", "true")!!.toBoolean()
 }
