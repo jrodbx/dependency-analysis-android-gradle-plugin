@@ -12,6 +12,7 @@ import com.autonomousapps.internal.utils.toPrettyString
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.artifacts.ArtifactCollection
+import org.gradle.api.file.FileCollection
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.tasks.*
 
@@ -23,15 +24,18 @@ import org.gradle.api.tasks.*
  * nb: this task cannot (easily) use Workers, since an [ArtifactCollection] is not serializable.
  */
 @CacheableTask
-abstract class ArtifactsAnalysisTask : DefaultTask() {
+abstract class ArtifactsReportTask : DefaultTask() {
 
   init {
     group = TASK_GROUP_DEP
-    description = "Produces a report of all classes referenced by a given jar"
+    description = "Produces a report that lists all direct and transitive dependencies, along with their artifacts"
   }
 
   private lateinit var artifacts: ArtifactCollection
 
+  /**
+   * This artifact collection is the result of resolving the compilation classpath.
+   */
   fun setArtifacts(artifacts: ArtifactCollection) {
     this.artifacts = artifacts
   }
@@ -45,7 +49,7 @@ abstract class ArtifactsAnalysisTask : DefaultTask() {
    */
   @PathSensitive(PathSensitivity.RELATIVE)
   @InputFiles
-  fun getArtifactFiles() = artifacts.artifactFiles
+  fun getArtifactFiles(): FileCollection = artifacts.artifactFiles
 
   @get:PathSensitive(PathSensitivity.NONE)
   @get:InputFile

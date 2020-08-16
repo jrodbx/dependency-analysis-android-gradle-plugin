@@ -35,7 +35,8 @@ data class Artifact(
    */
   val dependency: Dependency,
   /**
-   * If false, a direct dependency (declared in the `dependencies {}` block). If true, a transitive dependency.
+   * If false, a direct dependency (declared in the `dependencies {}` block). If true, a transitive
+   * dependency.
    */
   var isTransitive: Boolean? = null,
   /**

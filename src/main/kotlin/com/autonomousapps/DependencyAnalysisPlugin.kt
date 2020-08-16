@@ -474,7 +474,7 @@ class DependencyAnalysisPlugin : Plugin<Project> {
 
     // Produces a report that lists all direct and transitive dependencies, their artifacts
     val artifactsReportTask =
-      tasks.register<ArtifactsAnalysisTask>("artifactsReport$variantTaskName") {
+      tasks.register<ArtifactsReportTask>("artifactsReport$variantTaskName") {
         val artifactCollection =
           configurations[dependencyAnalyzer.compileConfigurationName].incoming.artifactView {
             attributes.attribute(dependencyAnalyzer.attribute, dependencyAnalyzer.attributeValue)
@@ -567,6 +567,25 @@ class DependencyAnalysisPlugin : Plugin<Project> {
     // Produces a report that list all classes _used by_ the given project. Analyzes bytecode and
     // collects all class references.
     val analyzeClassesTask = dependencyAnalyzer.registerClassAnalysisTask()
+
+    // TODO move
+    val graphTask = tasks.register<DependencyGraphTask>("graph$variantTaskName") {
+      val runtimeClasspath = configurations.getByName(dependencyAnalyzer.runtimeConfigurationName)
+      configuration = runtimeClasspath
+      artifactFiles.setFrom(
+        runtimeClasspath.incoming.artifactView {
+          attributes.attribute(dependencyAnalyzer.attribute, dependencyAnalyzer.attributeValue)
+        }.artifacts.artifactFiles
+      )
+      // Consumer inputs
+      usedClasses.set(analyzeClassesTask.flatMap { it.output })
+
+      // Producer inputs
+      components.set(dependencyReportTask.flatMap { it.allComponentsReport })
+
+      outputJson.set(outputPaths.graphPath)
+      outputDot.set(outputPaths.graphDotPath)
+    }
 
     // A report of all unused dependencies and used-transitive dependencies
     val misusedDependenciesTask =
